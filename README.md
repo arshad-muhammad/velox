@@ -16,3 +16,8 @@ To get started with Velox, please refer to the [Installation](#installation) sec
 ### Contributing
 
 We welcome contributions of all kinds! Whether you’re reporting bugs, suggesting features, or submitting code, your input is invaluable to the growth of Velox. Please see our [Contributing Guidelines](CONTRIBUTING.md) for more information.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
