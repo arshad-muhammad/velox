@@ -1,5 +1,3 @@
-# parser.py
-
 class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
@@ -13,19 +11,18 @@ class Parser:
                 statements.append(statement)
         return statements
 
-def parse_statement(self):
-    token_type, token_value = self.tokens[self.position]
-    if token_type == 'IDENTIFIER' and token_value == 'print':
-        return self.parse_print_statement()
-    elif token_type == 'IDENTIFIER':
-        if self.tokens[self.position + 1][0] == 'EQUAL':
-            return self.parse_assignment()
-        elif self.tokens[self.position][1] == 'if':
-            return self.parse_if_statement()
-    else:
-        self.position += 1  
-        return None
-
+    def parse_statement(self):
+        token_type, token_value = self.tokens[self.position]
+        if token_type == 'IDENTIFIER' and token_value == 'print':
+            return self.parse_print_statement()
+        elif token_type == 'IDENTIFIER':
+            if self.tokens[self.position + 1][0] == 'EQUAL':
+                return self.parse_assignment()
+            elif self.tokens[self.position][1] == 'if':
+                return self.parse_if_statement()
+        else:
+            self.position += 1  
+            return None
 
     def parse_print_statement(self):
         self.position += 1  
