@@ -6,61 +6,88 @@ class Parser:
     def parse(self):
         statements = []
         while self.position < len(self.tokens):
-            statement = self.parse_statement()
-            if statement:
-                statements.append(statement)
+            try:
+                statement = self.parse_statement()
+                if statement:
+                    statements.append(statement)
+            except SyntaxError as e:
+                print(f"Syntax error: {e}")
+                self.advance()  # Skip the problematic token
         return statements
 
     def parse_statement(self):
-        token_type, token_value = self.tokens[self.position]
-        if token_type == 'IDENTIFIER' and token_value == 'print':
-            return self.parse_print_statement()
-        elif token_type == 'IDENTIFIER':
-            if self.tokens[self.position + 1][0] == 'EQUAL':
-                return self.parse_assignment()
-            elif self.tokens[self.position][1] == 'if':
+        current_token = self.peek()
+        if current_token[0] == 'IDENTIFIER':
+            if current_token[1] == 'print':
+                return self.parse_print_statement()
+            elif current_token[1] == 'if':
                 return self.parse_if_statement()
-        else:
-            self.position += 1  
+            else:
+                return self.parse_assignment()
+        elif current_token[0] == 'NEWLINE':
+            self.advance()
             return None
+        else:
+            raise SyntaxError(f"Unexpected token: {current_token}")
 
     def parse_print_statement(self):
-        self.position += 1  
+        self.expect('IDENTIFIER', 'print')
         self.expect('LPAREN')
-        self.expect('STRING')  
-        string_value = self.tokens[self.position - 1][1]
+        expression = self.parse_expression()
         self.expect('RPAREN')
-        self.expect('SEMICOLON')
-        return ('PRINT', string_value)
+        self.expect_optional('SEMICOLON')
+        return ('print', expression)
+
+    def parse_expression(self):
+        token = self.peek()
+        self.advance()
+        return token[1]  # Return the token value as a simple expression
 
     def parse_assignment(self):
-        identifier = self.tokens[self.position][1]
-        self.expect('IDENTIFIER')
+        identifier = self.expect('IDENTIFIER')[1]
         self.expect('EQUAL')
-        self.expect('NUMBER')  
-        number_value = self.tokens[self.position - 1][1]
-        self.expect('SEMICOLON')
-        return ('ASSIGN', identifier, number_value)
+        value = self.parse_expression()
+        self.expect_optional('SEMICOLON')
+        return ('assign', identifier, value)
 
     def parse_if_statement(self):
-        self.expect('IDENTIFIER')  
+        self.expect('IDENTIFIER', 'if')
         self.expect('LPAREN')
-        identifier = self.tokens[self.position][1]
-        self.expect('IDENTIFIER')  
-        self.expect('EQUAL')
-        self.expect('EQUAL')
-        self.expect('NUMBER')  
-        number_value = self.tokens[self.position - 1][1]
+        condition = self.parse_condition()
         self.expect('RPAREN')
         self.expect('LBRACE')
-        true_statements = []
-        while self.tokens[self.position][0] != 'RBRACE':
-            true_statements.append(self.parse_statement())
+        body = []
+        while self.peek()[0] != 'RBRACE':
+            statement = self.parse_statement()
+            if statement:
+                body.append(statement)
         self.expect('RBRACE')
-        return ('IF', identifier, number_value, true_statements)
+        return ('if', condition, body)
 
-    def expect(self, token_type):
-        if self.position < len(self.tokens) and self.tokens[self.position][0] == token_type:
-            self.position += 1
-        else:
-            raise SyntaxError(f'Expected token type {token_type}, but got {self.tokens[self.position][0]}')
+    def parse_condition(self):
+        left = self.expect('IDENTIFIER')[1]
+        self.expect('EQUAL')
+        self.expect('EQUAL')
+        right = self.expect('NUMBER')[1]
+        return ('==', left, right)
+
+    def peek(self):
+        if self.position < len(self.tokens):
+            return self.tokens[self.position]
+        return ('EOF', None)
+
+    def expect(self, token_type, value=None):
+        if self.position >= len(self.tokens):
+            raise SyntaxError(f'Expected token type {token_type}, but reached end of file')
+        token = self.tokens[self.position]
+        if token[0] != token_type or (value and token[1] != value):
+            raise SyntaxError(f'Expected token type {token_type}{f" with value {value}" if value else ""}, but got {token}')
+        self.advance()
+        return token
+
+    def expect_optional(self, token_type):
+        if self.peek()[0] == token_type:
+            self.advance()
+
+    def advance(self):
+        self.position += 1
