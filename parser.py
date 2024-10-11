@@ -22,6 +22,8 @@ class Parser:
                 return self.parse_print_statement()
             elif current_token[1] == 'if':
                 return self.parse_if_statement()
+            elif current_token[1] == 'while':
+                return self.parse_while_statement()
             else:
                 return self.parse_assignment()
         elif current_token[0] == 'NEWLINE':
@@ -70,6 +72,20 @@ class Parser:
         self.expect('EQUAL')
         right = self.expect('NUMBER')[1]
         return ('==', left, right)
+
+    def parse_while_statement(self):
+        self.expect('IDENTIFIER', 'while')
+        self.expect('LPAREN')
+        condition = self.parse_condition()  # Parse the condition (e.g., x < 5)v
+        self.expect('RPAREN')
+        self.expect('LBRACE')
+        body = []
+        while self.peek()[0] != 'RBRACE':
+            statement = self.parse_statement()
+            if statement:
+                body.append(statement)
+        self.expect('RBRACE')
+        return ('while', condition, body)
 
     def peek(self):
         if self.position < len(self.tokens):

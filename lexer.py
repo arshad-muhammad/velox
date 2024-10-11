@@ -3,6 +3,10 @@
 import re
 
 TOKEN_TYPES = [
+    ("LESS", r'<'),
+    ("GREATER", r'>'),
+    ("LESSEQUAL", r'<='),
+    ("GREATEREQUAL", r'>='),
     ("NUMBER", r'\d+(\.\d+)?'),  
     ("STRING", r'"(.*?)"'),      
     ("IDENTIFIER", r'[a-zA-Z_]\w*'),  

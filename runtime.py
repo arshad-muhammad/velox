@@ -58,3 +58,21 @@ class Runtime:
                 return expr[1:-1]
             return self.variables.get(expr, expr)
         return expr
+
+def evaluate_expression(self, expr):
+    if isinstance(expr, str):
+        if expr.startswith('"') and expr.endswith('"'):
+            return expr[1:-1]  # Remove quotes for string literals
+        return self.variables.get(expr, expr)
+    
+    if isinstance(expr, tuple):  # Handle arithmetic operations
+        operator, left, right = expr
+        left_value = self.evaluate_expression(left)
+        right_value = self.evaluate_expression(right)
+        
+        if operator == '+':
+            if isinstance(left_value, str) or isinstance(right_value, str):
+                return str(left_value) + str(right_value)  # String concatenation
+            return float(left_value) + float(right_value)
+    
+    return expr

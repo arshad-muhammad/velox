@@ -1,8 +1,7 @@
-print("Hello, Velox!");
-x = 5;
-if (x == 5) {
-    print("x is five");
+x = 0;
+while (x < 5) {
+    print("x is " + x);
+    x = x + 1;
 }
-print("success")
-print("second succedd")
-print("third succedd")
+print("Loop completed");
+print("Loop 2 completed");
