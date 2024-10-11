@@ -76,7 +76,7 @@ class Parser:
     def parse_while_statement(self):
         self.expect('IDENTIFIER', 'while')
         self.expect('LPAREN')
-        condition = self.parse_condition()  # Parse the condition (e.g., x < 5)
+        condition = self.parse_condition()  # Parse the condition (e.g., x < 5)v
         self.expect('RPAREN')
         self.expect('LBRACE')
         body = []
