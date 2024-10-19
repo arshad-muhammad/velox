@@ -11,7 +11,7 @@ class Parser:
                 if statement:
                     statements.append(statement)
             except SyntaxError as e:
-                print(f"Syntax error: {e}")
+                print(f"Syntax error at token {self.peek()}: {e}")
                 self.advance()  # Skip the problematic token
         return statements
 
@@ -41,9 +41,23 @@ class Parser:
         return ('print', expression)
 
     def parse_expression(self):
+        left = self.parse_term()
+        while self.peek()[0] in ('PLUS', 'MINUS'):
+            operator = self.advance()[1]
+            right = self.parse_term()
+            left = (operator, left, right)  # Create a binary operation
+        return left
+
+    def parse_term(self):
         token = self.peek()
-        self.advance()
-        return token[1]  # Return the token value as a simple expression
+        if token[0] == 'IDENTIFIER':
+            self.advance()
+            return ('var', token[1])  # Variable
+        elif token[0] == 'NUMBER':
+            self.advance()
+            return ('num', token[1])  # Literal
+        else:
+            raise SyntaxError(f"Unexpected token in expression: {token}")
 
     def parse_assignment(self):
         identifier = self.expect('IDENTIFIER')[1]
@@ -68,15 +82,14 @@ class Parser:
 
     def parse_condition(self):
         left = self.expect('IDENTIFIER')[1]
-        self.expect('EQUAL')
-        self.expect('EQUAL')
+        operator = self.expect('IDENTIFIER')[1]  # Expecting a comparison operator (like <, >, ==)
         right = self.expect('NUMBER')[1]
-        return ('==', left, right)
+        return (operator, left, right)  # Return condition tuple
 
     def parse_while_statement(self):
         self.expect('IDENTIFIER', 'while')
         self.expect('LPAREN')
-        condition = self.parse_condition()  # Parse the condition (e.g., x < 5)v
+        condition = self.parse_condition()  # Parse the condition (e.g., x < 5)
         self.expect('RPAREN')
         self.expect('LBRACE')
         body = []
