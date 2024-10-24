@@ -18,19 +18,22 @@ class Parser:
     def parse_statement(self):
         current_token = self.peek()
         if current_token[0] == 'IDENTIFIER':
-            if current_token[1] == 'print':
-                return self.parse_print_statement()
-            elif current_token[1] == 'if':
-                return self.parse_if_statement()
-            elif current_token[1] == 'while':
-                return self.parse_while_statement()
-            else:
-                return self.parse_assignment()
+            return self.handle_identifier(current_token)
         elif current_token[0] == 'NEWLINE':
             self.advance()
             return None
         else:
             raise SyntaxError(f"Unexpected token: {current_token}")
+
+    def handle_identifier(self, current_token):
+        if current_token[1] == 'print':
+            return self.parse_print_statement()
+        elif current_token[1] == 'if':
+            return self.parse_if_statement()
+        elif current_token[1] == 'while':
+            return self.parse_while_statement()
+        else:
+            return self.parse_assignment()
 
     def parse_print_statement(self):
         self.expect('IDENTIFIER', 'print')
@@ -72,12 +75,7 @@ class Parser:
         condition = self.parse_condition()
         self.expect('RPAREN')
         self.expect('LBRACE')
-        body = []
-        while self.peek()[0] != 'RBRACE':
-            statement = self.parse_statement()
-            if statement:
-                body.append(statement)
-        self.expect('RBRACE')
+        body = self.parse_block()
         return ('if', condition, body)
 
     def parse_condition(self):
@@ -92,13 +90,17 @@ class Parser:
         condition = self.parse_condition()  # Parse the condition (e.g., x < 5)
         self.expect('RPAREN')
         self.expect('LBRACE')
+        body = self.parse_block()
+        return ('while', condition, body)
+
+    def parse_block(self):
         body = []
         while self.peek()[0] != 'RBRACE':
             statement = self.parse_statement()
             if statement:
                 body.append(statement)
         self.expect('RBRACE')
-        return ('while', condition, body)
+        return body
 
     def peek(self):
         if self.position < len(self.tokens):
@@ -110,13 +112,13 @@ class Parser:
             raise SyntaxError(f'Expected token type {token_type}, but reached end of file')
         token = self.tokens[self.position]
         if token[0] != token_type or (value and token[1] != value):
-            raise SyntaxError(f'Expected token type {token_type}{f" with value {value}" if value else ""}, but got {token}')
-        self.advance()
+            raise SyntaxError(f'Expected token {token_type} {value}, but got {token}')
+        self.position += 1
         return token
 
     def expect_optional(self, token_type):
-        if self.peek()[0] == token_type:
-            self.advance()
+        if self.position < len(self.tokens) and self.tokens[self.position][0] == token_type:
+            self.position += 1
 
     def advance(self):
         self.position += 1
