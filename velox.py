@@ -1,91 +1,265 @@
-from lexer import Lexer
-from parser import Parser
-from runtime import Runtime
-import sys
+# lexer.py
+from dataclasses import dataclass
+from enum import Enum, auto
 from typing import List, Optional
 
-def load_source_file(filename: str) -> Optional[str]:
-    """
-    Load source code from a file.
-    
-    Args:
-        filename (str): Path to the source code file
-        
-    Returns:
-        Optional[str]: The file contents if successful, None if file operation fails
-    
-    Raises:
-        FileNotFoundError: If the source file cannot be found
-    """
-    try:
-        with open(filename, 'r') as file:
-            return file.read()
-    except FileNotFoundError:
-        print(f"Error: Could not find file '{filename}'")
-        return None
-    except Exception as e:
-        print(f"Error reading file: {str(e)}")
-        return None
+class TokenType(Enum):
+    NUMBER = auto()
+    PLUS = auto()
+    MINUS = auto()
+    MULTIPLY = auto()
+    DIVIDE = auto()
+    ASSIGN = auto()
+    IDENTIFIER = auto()
+    PRINT = auto()
+    LPAREN = auto()
+    RPAREN = auto()
+    EOF = auto()
 
-def process_code(code: str, debug: bool = False) -> bool:
-    """
-    Process the source code through lexing, parsing, and runtime stages.
-    
-    Args:
-        code (str): Source code to process
-        debug (bool): Whether to print debug information
-        
-    Returns:
-        bool: True if processing was successful, False otherwise
-    """
-    try:
-        # Tokenization
-        lexer = Lexer(code)
-        tokens = lexer.tokenize()
-        if debug:
-            print("\nTokens:")
-            for token in tokens:
-                print(f"  {token}")
-        
-        # Parsing
-        parser = Parser(tokens)
-        ast = parser.parse()
-        if debug:
-            print("\nAbstract Syntax Tree:")
-            for statement in ast:
-                print(f"  {statement}")
-        
-        # Runtime execution
-        runtime = Runtime()
-        runtime.run(ast)
-        return True
-        
-    except Exception as e:
-        print(f"Error during processing: {str(e)}")
-        return False
+@dataclass
+class Token:
+    type: TokenType
+    value: Optional[str]
+    line: int
+    column: int
 
-def main() -> int:
-    """
-    Main entry point for the interpreter.
-    
-    Returns:
-        int: Exit code (0 for success, 1 for failure)
-    """
-    # Check command line arguments
-    if len(sys.argv) < 2:
-        print("Usage: python interpreter.py <filename> [--debug]")
-        return 1
-    
-    filename = sys.argv[1]
-    debug_mode = "--debug" in sys.argv
-    
-    # Load and process the source code
-    source_code = load_source_file(filename)
-    if source_code is None:
-        return 1
-        
-    success = process_code(source_code, debug=debug_mode)
-    return 0 if success else 1
+    def __str__(self):
+        return f"Token({self.type}, '{self.value}', line={self.line}, col={self.column})"
 
-if __name__ == "__main__":
-    sys.exit(main())
+class Lexer:
+    def __init__(self, source: str):
+        self.source = source
+        self.position = 0
+        self.line = 1
+        self.column = 1
+        self.current_char = self.source[0] if source else None
+
+    def advance(self):
+        """Move to next character in the source code."""
+        self.position += 1
+        if self.current_char == '\n':
+            self.line += 1
+            self.column = 1
+        else:
+            self.column += 1
+            
+        self.current_char = self.source[self.position] if self.position < len(self.source) else None
+
+    def skip_whitespace(self):
+        """Skip whitespace characters."""
+        while self.current_char and self.current_char.isspace():
+            self.advance()
+
+    def read_number(self) -> Token:
+        """Read a numeric token."""
+        result = ''
+        start_column = self.column
+        
+        while self.current_char and (self.current_char.isdigit() or self.current_char == '.'):
+            result += self.current_char
+            self.advance()
+            
+        return Token(TokenType.NUMBER, result, self.line, start_column)
+
+    def read_identifier(self) -> Token:
+        """Read an identifier or keyword token."""
+        result = ''
+        start_column = self.column
+        
+        while self.current_char and (self.current_char.isalnum() or self.current_char == '_'):
+            result += self.current_char
+            self.advance()
+            
+        if result == 'print':
+            return Token(TokenType.PRINT, result, self.line, start_column)
+        return Token(TokenType.IDENTIFIER, result, self.line, start_column)
+
+    def tokenize(self) -> List[Token]:
+        """Convert source code into a list of tokens."""
+        tokens = []
+        
+        while self.current_char is not None:
+            if self.current_char.isspace():
+                self.skip_whitespace()
+                continue
+                
+            if self.current_char.isdigit():
+                tokens.append(self.read_number())
+                continue
+                
+            if self.current_char.isalpha():
+                tokens.append(self.read_identifier())
+                continue
+                
+            # Single-character tokens
+            current_char = self.current_char
+            current_column = self.column
+            
+            if current_char == '+':
+                tokens.append(Token(TokenType.PLUS, '+', self.line, current_column))
+            elif current_char == '-':
+                tokens.append(Token(TokenType.MINUS, '-', self.line, current_column))
+            elif current_char == '*':
+                tokens.append(Token(TokenType.MULTIPLY, '*', self.line, current_column))
+            elif current_char == '/':
+                tokens.append(Token(TokenType.DIVIDE, '/', self.line, current_column))
+            elif current_char == '=':
+                tokens.append(Token(TokenType.ASSIGN, '=', self.line, current_column))
+            elif current_char == '(':
+                tokens.append(Token(TokenType.LPAREN, '(', self.line, current_column))
+            elif current_char == ')':
+                tokens.append(Token(TokenType.RPAREN, ')', self.line, current_column))
+            else:
+                raise SyntaxError(f"Invalid character '{current_char}' at line {self.line}, column {current_column}")
+                
+            self.advance()
+            
+        tokens.append(Token(TokenType.EOF, None, self.line, self.column))
+        return tokens
+
+# parser.py
+from dataclasses import dataclass
+from typing import List, Union, Optional
+
+@dataclass
+class NumberNode:
+    value: float
+
+@dataclass
+class VariableNode:
+    name: str
+
+@dataclass
+class BinOpNode:
+    left: Union['NumberNode', 'VariableNode', 'BinOpNode']
+    operator: TokenType
+    right: Union['NumberNode', 'VariableNode', 'BinOpNode']
+
+@dataclass
+class AssignmentNode:
+    name: str
+    value: Union['NumberNode', 'VariableNode', 'BinOpNode']
+
+@dataclass
+class PrintNode:
+    expression: Union['NumberNode', 'VariableNode', 'BinOpNode']
+
+class Parser:
+    def __init__(self, tokens: List[Token]):
+        self.tokens = tokens
+        self.current = 0
+
+    def advance(self) -> Token:
+        self.current += 1
+        return self.tokens[self.current - 1]
+
+    def peek(self) -> Token:
+        return self.tokens[self.current]
+
+    def parse(self) -> List[Union[AssignmentNode, PrintNode]]:
+        """Parse tokens into an AST."""
+        statements = []
+        
+        while self.peek().type != TokenType.EOF:
+            if self.peek().type == TokenType.PRINT:
+                statements.append(self.parse_print_statement())
+            elif self.peek().type == TokenType.IDENTIFIER:
+                statements.append(self.parse_assignment())
+            else:
+                raise SyntaxError(f"Unexpected token {self.peek()}")
+                
+        return statements
+
+    def parse_print_statement(self) -> PrintNode:
+        """Parse a print statement."""
+        self.advance()  # consume 'print'
+        expr = self.parse_expression()
+        return PrintNode(expr)
+
+    def parse_assignment(self) -> AssignmentNode:
+        """Parse a variable assignment."""
+        name = self.advance().value
+        
+        if self.peek().type != TokenType.ASSIGN:
+            raise SyntaxError(f"Expected '=', got {self.peek()}")
+            
+        self.advance()  # consume '='
+        value = self.parse_expression()
+        return AssignmentNode(name, value)
+
+    def parse_expression(self) -> Union[NumberNode, VariableNode, BinOpNode]:
+        """Parse an arithmetic expression."""
+        left = self.parse_term()
+        
+        while self.peek().type in (TokenType.PLUS, TokenType.MINUS):
+            operator = self.advance().type
+            right = self.parse_term()
+            left = BinOpNode(left, operator, right)
+            
+        return left
+
+    def parse_term(self) -> Union[NumberNode, VariableNode, BinOpNode]:
+        """Parse a term (product/quotient)."""
+        left = self.parse_factor()
+        
+        while self.peek().type in (TokenType.MULTIPLY, TokenType.DIVIDE):
+            operator = self.advance().type
+            right = self.parse_factor()
+            left = BinOpNode(left, operator, right)
+            
+        return left
+
+    def parse_factor(self) -> Union[NumberNode, VariableNode]:
+        """Parse a factor (number/variable)."""
+        token = self.advance()
+        
+        if token.type == TokenType.NUMBER:
+            return NumberNode(float(token.value))
+        elif token.type == TokenType.IDENTIFIER:
+            return VariableNode(token.value)
+        else:
+            raise SyntaxError(f"Unexpected token {token}")
+
+# runtime.py
+class Runtime:
+    def __init__(self):
+        self.variables = {}
+
+    def evaluate(self, node: Union[NumberNode, VariableNode, BinOpNode]) -> float:
+        """Evaluate an expression node."""
+        if isinstance(node, NumberNode):
+            return node.value
+            
+        if isinstance(node, VariableNode):
+            if node.name not in self.variables:
+                raise RuntimeError(f"Variable '{node.name}' is not defined")
+            return self.variables[node.name]
+            
+        if isinstance(node, BinOpNode):
+            left = self.evaluate(node.left)
+            right = self.evaluate(node.right)
+            
+            if node.operator == TokenType.PLUS:
+                return left + right
+            elif node.operator == TokenType.MINUS:
+                return left - right
+            elif node.operator == TokenType.MULTIPLY:
+                return left * right
+            elif node.operator == TokenType.DIVIDE:
+                if right == 0:
+                    raise RuntimeError("Division by zero")
+                return left / right
+                
+        raise RuntimeError(f"Invalid node type: {type(node)}")
+
+    def run(self, statements: List[Union[AssignmentNode, PrintNode]]):
+        """Execute the program."""
+        for statement in statements:
+            if isinstance(statement, AssignmentNode):
+                value = self.evaluate(statement.value)
+                self.variables[statement.name] = value
+            elif isinstance(statement, PrintNode):
+                value = self.evaluate(statement.expression)
+                print(value)
+            else:
+                raise RuntimeError(f"Invalid statement type: {type(statement)}")
